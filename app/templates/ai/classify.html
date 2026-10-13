@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}AI Smart Medical Waste Segregation Scanner{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10">
+    
+    <!-- Title & Safety Banner -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+      <div>
+        <h3 class="fw-bold mb-1 text-dark">
+          <i class="bi bi-camera-viewfinder text-warning me-2"></i>AI Smart Medical Waste Segregation Scanner
+        </h3>
+        <div class="text-muted small">
+          Computer vision decision-support powered by MobileNetV2 transfer learning with human-in-the-loop verification.
+        </div>
+      </div>
+      <div class="mt-2 mt-md-0">
+        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-3 py-2">
+          <i class="bi bi-shield-lock me-1"></i> Human Verification Mandatory
+        </span>
+      </div>
+    </div>
+
+    <!-- Educational Prototype Notice -->
+    <div class="alert alert-warning border-warning shadow-sm mb-4" role="alert">
+      <div class="d-flex">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
+        <div class="small">
+          <strong>CLINICAL SAFETY MANDATE (BMW Rules 2016):</strong> This artificial intelligence engine is an 
+          <em>educational decision-support prototype</em>. AI predictions must <strong>never</strong> be treated as autonomous authority for hazardous biomedical waste disposal. All waste classifications must be physically inspected and verified by trained clinical staff before containment.
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Left Column: Image Upload & Camera Capture Zone -->
+      <div class="col-lg-5">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+          <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-upload me-2 text-primary"></i>1. Capture / Upload Waste Image</h6>
+            {% if demo_mode %}
+            <span class="badge bg-secondary-subtle text-secondary border small">Demo Heuristic Mode</span>
+            {% endif %}
+          </div>
+          <div class="card-body p-4 d-flex flex-column">
+            
+            <!-- Drag and Drop Dropzone -->
+            <div id="uploadDropzone" class="upload-dropzone mb-3 flex-grow-1 d-flex flex-column justify-content-center align-items-center">
+              <i class="bi bi-cloud-arrow-up display-4 text-primary mb-2"></i>
+              <div class="fw-bold text-dark mb-1">Click to browse or drag & drop photo</div>
+              <div class="text-muted small">Supported formats: JPEG, PNG, WEBP (Max: 16 MB)</div>
+              <input type="file" id="wasteImageInput" accept="image/*" class="d-none">
+            </div>
+
+            <!-- Image Preview Box -->
+            <div id="previewContainer" class="text-center mb-3 d-none">
+              <div class="position-relative d-inline-block">
+                <img id="previewImage" src="" alt="Selected Waste Image" class="img-thumbnail rounded-3 shadow-sm" style="max-height: 220px; object-fit: contain;">
+              </div>
+            </div>
+
+            <!-- Scan Action Button -->
+            <button id="scanBtn" class="btn btn-warning text-dark fw-bold py-2 shadow-sm w-100" disabled>
+              <i class="bi bi-cpu me-2"></i>Analyze Waste with AI
+            </button>
+
+            <!-- Loading Spinner -->
+            <div id="scanningSpinner" class="text-center py-3 d-none">
+              <div class="spinner-border text-primary" role="status"></div>
+              <div class="small text-muted mt-2">Evaluating visual features & BMW rules...</div>
+            </div>
+
+            <!-- Fallback Manual Entry Notice -->
+            <div class="mt-auto pt-3 text-center border-top">
+              <div class="small text-muted mb-2">Camera unavailable or ambiguous visual?</div>
+              <a href="{{ url_for('waste.create_record') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-keyboard me-1"></i> Switch to Direct Manual Classification
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: AI Prediction Results & Human Verification Form -->
+      <div class="col-lg-7">
+        
+        <!-- Placeholder when no image analyzed yet -->
+        <div id="emptyPromptCard" class="card shadow-sm border-0 rounded-4 p-5 text-center text-muted h-100 d-flex justify-content-center align-items-center">
+          <i class="bi bi-image fs-1 text-secondary mb-3 opacity-50"></i>
+          <h5 class="fw-bold text-secondary">Awaiting Image Input</h5>
+          <p class="small mb-0 max-w-sm">Upload or capture an image of biomedical waste on the left and click "Analyze Waste with AI" to generate containment guidance.</p>
+        </div>
+
+        <!-- Prediction Result & Verification Card (Shown after analysis) -->
+        <div id="resultCard" class="card shadow-sm border-0 rounded-4 overflow-hidden d-none">
+          
+          <!-- Prediction Header Banner -->
+          <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+              <span id="predBinBadge" class="badge me-2 fs-6 px-3 py-2 shadow-sm">Bin Color</span>
+              <h5 id="predCategoryName" class="fw-bold mb-0 text-dark">Category Name</h5>
+            </div>
+            <div id="demoModeIndicator" class="badge bg-secondary d-none">
+              Educational Demo
+            </div>
+          </div>
+
+          <div class="card-body p-4">
+            
+            <!-- Low Confidence / Needs Review Alert -->
+            <div id="reviewWarningAlert" class="alert alert-danger border-danger d-flex align-items-center mb-3 d-none" role="alert">
+              <i class="bi bi-shield-exclamation fs-4 me-3 text-danger"></i>
+              <div class="small">
+                <strong>Safety Alert: Low Confidence / Unknown Waste.</strong> The AI classifier detected ambiguity or low certainty. 
+                Please inspect carefully or assign to <code>UNKNOWN / QUARANTINE</code> stream for Infection Control Officer review.
+              </div>
+            </div>
+
+            <!-- Confidence Score Bar -->
+            <div class="mb-4">
+              <div class="d-flex justify-content-between small fw-semibold text-secondary mb-1">
+                <span>AI Prediction Confidence</span>
+                <span id="predConfidenceText">0%</span>
+              </div>
+              <div class="confidence-gauge">
+                <div id="predConfidenceFill" class="confidence-fill bg-success" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Approved Disposal Guidance (BMW Rules 2016) -->
+            <div class="border rounded-3 p-3 bg-light mb-4">
+              <div class="fw-bold text-dark small text-uppercase mb-2">
+                <i class="bi bi-book me-1 text-primary"></i>Prescribed Disposal Guidance (BMW Rules 2016)
+              </div>
+              <div class="small mb-1">
+                <strong>Container Spec:</strong> <span id="predContainer">-</span>
+              </div>
+              <div class="small mb-1">
+                <strong>Approved Treatment:</strong> <span id="predTreatment">-</span>
+              </div>
+              <div class="small">
+                <strong>Permitted Contents:</strong> <span id="predItems">-</span>
+              </div>
+            </div>
+
+            <!-- Probabilities breakdown accordion -->
+            <div class="accordion mb-4" id="probAccordion">
+              <div class="accordion-item border">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProb">
+                    <i class="bi bi-bar-chart-steps me-2"></i>View Multi-Category Probability Distribution
+                  </button>
+                </h2>
+                <div id="collapseProb" class="accordion-collapse collapse" data-bs-parent="#probAccordion">
+                  <div class="accordion-body p-3" id="probabilityDistributionList">
+                    <!-- Populated dynamically by classifier.js -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- Human-in-the-Loop Mandatory Verification & Commit Form -->
+            <h6 class="fw-bold text-dark mb-3">
+              <i class="bi bi-check2-circle text-success me-2"></i>2. Staff Verification & Ledger Commitment
+            </h6>
+            
+            <form id="verificationForm">
+              <input type="hidden" id="hiddenImageFilename" name="image_filename">
+              <input type="hidden" id="hiddenAiCategory" name="ai_suggested_category">
+              <input type="hidden" id="hiddenAiConfidence" name="ai_confidence">
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="verifyDepartmentSelect" class="form-label small fw-semibold text-secondary">Originating Department *</label>
+                  <select class="form-select form-select-sm" id="verifyDepartmentSelect" name="department_id" required>
+                    <option value="">-- Select Department --</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}">{{ dept.code }} - {{ dept.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="verifyCategorySelect" class="form-label small fw-semibold text-secondary">
+                    Staff-Verified Category * <span class="text-muted fw-normal">(Override if needed)</span>
+                  </label>
+                  <select class="form-select form-select-sm" id="verifyCategorySelect" name="assigned_category_id" required>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.bin_color_name }} Bin: {{ cat.name }} ({{ cat.code }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="verifyQuantityInput" class="form-label small fw-semibold text-secondary">Gross Weight (kg) *</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" step="0.01" min="0.01" max="5000" class="form-control" id="verifyQuantityInput" name="quantity_kg" placeholder="e.g. 2.50" required>
+                    <span class="input-group-text">kg</span>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="verifyDescriptionInput" class="form-label small fw-semibold text-secondary">Item Description *</label>
+                  <input type="text" class="form-control form-control-sm" id="verifyDescriptionInput" name="item_description" placeholder="e.g. Discarded syringes, cotton swabs" required>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="verifyNotesInput" class="form-label small fw-semibold text-secondary">Staff Verification Notes</label>
+                <input type="text" class="form-control form-control-sm" id="verifyNotesInput" name="staff_notes" placeholder="e.g. Physically inspected; needles segregated separately">
+              </div>
+
+              <button type="submit" id="commitRecordBtn" class="btn btn-success w-100 py-2 fw-semibold shadow-sm">
+                <i class="bi bi-check-circle me-1"></i> Confirm & Log Waste Record
+              </button>
+            </form>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/classifier.js') }}"></script>
+{% endblock %}

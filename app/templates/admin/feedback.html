@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}AI Prediction Feedback & Corrections Audit{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+  <div>
+    <h3 class="fw-bold mb-1 text-dark"><i class="bi bi-cpu text-primary me-2"></i>AI Prediction Correction & Feedback Ledger</h3>
+    <div class="text-muted small">Continuous model improvement dataset: records where clinical staff overrode or refined the AI recommendation.</div>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+  <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold mb-0 text-dark">Staff Prediction Overrides ({{ feedbacks|length }})</h6>
+    <span class="badge bg-light text-secondary border">Retraining Pipeline Feed</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light small text-secondary">
+        <tr>
+          <th>RECORD</th>
+          <th>TIMESTAMP</th>
+          <th>IMAGE</th>
+          <th>AI PREDICTION</th>
+          <th>CONFIDENCE</th>
+          <th>STAFF OVERRIDE</th>
+          <th>CLINICAL REASON / NOTES</th>
+          <th>STAFF MEMBER</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fb in feedbacks %}
+        <tr>
+          <td>
+            <a href="{{ url_for('waste.view_record', record_id=fb.waste_record_id) }}" class="font-monospace fw-semibold">
+              #{{ fb.waste_record.tracking_code if fb.waste_record else fb.waste_record_id }}
+            </a>
+          </td>
+          <td class="small text-muted">{{ fb.created_at.strftime('%d-%b-%Y %H:%M') }}</td>
+          <td>
+            {% if fb.image_filename %}
+            <img src="{{ url_for('uploaded_file', filename=fb.image_filename) }}" 
+                 alt="Feedback item" class="rounded border" style="width: 44px; height: 44px; object-fit: cover;">
+            {% else %}
+            <span class="badge bg-light text-muted border">No image</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge bg-secondary-subtle text-secondary border font-monospace">
+              {{ fb.predicted_category }}
+            </span>
+          </td>
+          <td class="small fw-semibold">{{ "%.1f"|format(fb.predicted_confidence * 100) }}%</td>
+          <td>
+            <span class="badge bg-primary font-monospace">
+              {{ fb.actual_category }}
+            </span>
+          </td>
+          <td class="small">{{ fb.correction_reason or 'Direct staff category override.' }}</td>
+          <td class="small text-muted">{{ fb.user.full_name if fb.user else 'Staff' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted">
+            <i class="bi bi-patch-check fs-2 d-block mb-2 text-success"></i>
+            No classification overrides recorded yet. Staff selections currently match initial predictions.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

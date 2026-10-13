@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Biomedical Waste Compliance Reports{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+  <div>
+    <h3 class="fw-bold mb-1 text-dark"><i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Biomedical Waste Compliance Reports</h3>
+    <div class="text-muted small">Generate and export institutional audit manifests required by State Pollution Control Boards.</div>
+  </div>
+</div>
+
+<!-- Filter & Export Controls Card -->
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-funnel me-2 text-primary"></i>Audit Report Criteria & Download Controls</h6>
+  </div>
+  <div class="card-body p-4">
+    <form method="GET" action="{{ url_for('reports.index') }}" class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary">Start Date</label>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ current_date_from }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary">End Date</label>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ current_date_to }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary">Department</label>
+        <select name="department_id" class="form-select form-select-sm">
+          <option value="">All Departments</option>
+          {% for dept in departments %}
+          <option value="{{ dept.id }}" {% if current_department == dept.id %}selected{% endif %}>
+            {{ dept.code }} - {{ dept.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary">Waste Category Stream</label>
+        <select name="category_id" class="form-select form-select-sm">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if current_category == cat.id %}selected{% endif %}>
+            {{ cat.bin_color_name }} Bin ({{ cat.code }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 d-flex flex-wrap gap-2 pt-2 border-top">
+        <button type="submit" class="btn btn-primary btn-sm px-3">
+          <i class="bi bi-eye me-1"></i> Preview Report
+        </button>
+        <a href="{{ url_for('reports.export_csv', date_from=current_date_from, date_to=current_date_to, department_id=current_department, category_id=current_category) }}" class="btn btn-outline-success btn-sm px-3">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i> Download Audit CSV
+        </a>
+        <a href="{{ url_for('reports.export_pdf', date_from=current_date_from, date_to=current_date_to, department_id=current_department, category_id=current_category) }}" class="btn btn-outline-danger btn-sm px-3">
+          <i class="bi bi-file-earmark-pdf me-1"></i> Download Official PDF Report
+        </a>
+        <a href="{{ url_for('reports.index') }}" class="btn btn-light btn-sm text-secondary">
+          Reset Filter
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Preview Metrics Summary Card -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card p-3 shadow-sm border-0 rounded-3">
+      <div class="small text-secondary fw-semibold text-uppercase">Records in Scope</div>
+      <h3 class="fw-bold my-1 text-dark">{{ records|length }} entries</h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 shadow-sm border-0 rounded-3">
+      <div class="small text-secondary fw-semibold text-uppercase">Total Gross Mass</div>
+      <h3 class="fw-bold my-1 text-primary">{{ total_kg }} kg</h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 shadow-sm border-0 rounded-3">
+      <div class="small text-secondary fw-semibold text-uppercase">Facility License</div>
+      <h5 class="fw-bold my-1 text-secondary font-monospace">{{ hospital_code }}</h5>
+    </div>
+  </div>
+</div>
+
+<!-- Records Table Preview -->
+<div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+  <div class="card-header bg-white border-bottom py-3">
+    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-table me-2 text-secondary"></i>Audit Manifest Record Preview</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 small">
+      <thead class="table-light text-secondary">
+        <tr>
+          <th>BARCODE</th>
+          <th>TIMESTAMP</th>
+          <th>DEPARTMENT</th>
+          <th>ITEM DESCRIPTION</th>
+          <th>STREAM</th>
+          <th>WEIGHT</th>
+          <th>STATUS</th>
+          <th>VERIFIED BY</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="font-monospace fw-semibold">{{ r.tracking_code }}</td>
+          <td>{{ r.created_at.strftime('%d-%b-%Y %H:%M') }}</td>
+          <td>{{ r.department.code }}</td>
+          <td>{{ r.item_description }}</td>
+          <td>
+            <span class="badge" style="background-color: {{ r.category.bin_color_hex }}; color: {% if r.category.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
+              {{ r.category.bin_color_name }}
+            </span>
+          </td>
+          <td class="fw-bold">{{ "%.2f"|format(r.quantity_kg) }} kg</td>
+          <td><span class="badge bg-secondary">{{ r.disposal_status }}</span></td>
+          <td>{{ r.verifier.full_name if r.verifier else 'Not Verified' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted">No records match the requested report filter criteria.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

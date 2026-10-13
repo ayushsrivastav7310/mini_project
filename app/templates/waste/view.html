@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Waste Slip #{{ record.tracking_code }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <!-- Action Bar (Hidden during print) -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+      <a href="{{ url_for('waste.list_records') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Ledger
+      </a>
+      <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-dark btn-sm">
+          <i class="bi bi-printer me-1"></i> Print Waste Slip
+        </button>
+        <a href="{{ url_for('waste.edit_record', record_id=record.id) }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-pencil me-1"></i> Edit Record
+        </a>
+      </div>
+    </div>
+
+    <!-- Official Hospital Biomedical Waste Tracking Slip -->
+    <div class="card shadow-sm border rounded-4 overflow-hidden mb-4">
+      <!-- Header Banner with Bin Stream Color -->
+      <div class="p-4" style="background-color: {{ record.category.bin_color_hex }}; color: {% if record.category.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="badge bg-dark text-white text-uppercase px-2 py-1 mb-2">BMW-2016 COMPLIANT SLIP</span>
+            <h3 class="fw-bold mb-1">{{ record.category.name }}</h3>
+            <div class="fw-semibold">{{ record.category.bin_color_name }} Bin Stream ({{ record.category.code }})</div>
+          </div>
+          <div class="text-end">
+            <div class="display-6 fw-bold mb-0">{{ "%.2f"|format(record.quantity_kg) }} kg</div>
+            <div class="small fw-semibold">Gross Net Weight</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body p-4">
+        <!-- Barcode / Tracking Code Strip -->
+        <div class="bg-light border rounded-3 p-3 mb-4 text-center">
+          <div class="text-muted small text-uppercase fw-semibold mb-1">Electronic Barcode Tracking Identifier</div>
+          <h4 class="fw-bold text-dark font-monospace mb-0 tracking-wider">
+            <i class="bi bi-upc-scan me-2 text-primary"></i>{{ record.tracking_code }}
+          </h4>
+        </div>
+
+        <!-- Metadata Grid -->
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6">
+            <div class="text-muted small">Originating Department:</div>
+            <div class="fw-semibold text-dark">{{ record.department.name }} ({{ record.department.code }})</div>
+            <div class="small text-secondary">{{ record.department.floor_location }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Logged Timestamp:</div>
+            <div class="fw-semibold text-dark">{{ record.created_at.strftime('%d-%B-%Y %H:%M:%S UTC') }}</div>
+            <div class="small text-secondary">Logged By: {{ record.logger.full_name }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Item Description:</div>
+            <div class="fw-semibold text-dark">{{ record.item_description }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Disposal Lifecycle Status:</div>
+            <div>
+              <span class="badge {% if record.disposal_status == 'DISPATCHED' %}bg-success{% elif record.disposal_status == 'STORED' %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+                {{ record.disposal_status }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Container & Treatment Guidance -->
+        <div class="border rounded-3 p-3 mb-4 bg-light">
+          <h6 class="fw-bold text-dark mb-2"><i class="bi bi-box-seam me-2 text-primary"></i>Regulatory Container & Treatment Protocol</h6>
+          <div class="small mb-1"><strong>Container Specification:</strong> {{ record.category.container_type }}</div>
+          <div class="small mb-1"><strong>Approved Treatment:</strong> {{ record.category.treatment_method }}</div>
+          <div class="small"><strong>Permitted Items:</strong> {{ record.category.permitted_items }}</div>
+        </div>
+
+        <!-- AI Assistant Metadata (If Applicable) -->
+        {% if record.ai_suggested_category or record.image_filename %}
+        <div class="border rounded-3 p-3 mb-4">
+          <h6 class="fw-bold text-dark mb-2"><i class="bi bi-cpu me-2 text-info"></i>AI Decision Support Audit Details</h6>
+          <div class="row align-items-center">
+            {% if record.image_filename %}
+            <div class="col-auto">
+              <img src="{{ url_for('uploaded_file', filename=record.image_filename) }}" 
+                   alt="Scanned Waste Item" class="rounded border" style="width: 90px; height: 90px; object-fit: cover;">
+            </div>
+            {% endif %}
+            <div class="col">
+              <div class="small"><strong>AI Suggested Category:</strong> {{ record.ai_suggested_category or 'N/A' }}</div>
+              <div class="small"><strong>AI Confidence Score:</strong> {{ "%.1f"|format(record.ai_confidence * 100) if record.ai_confidence else 'N/A' }}%</div>
+              <div class="small text-muted mt-1">
+                <em>AI suggestion provided for guidance only. Human verification was applied prior to commitment.</em>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Staff Verification Signature Stamp -->
+        <div class="row align-items-center border-top pt-3">
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center">
+              {% if record.staff_verified %}
+              <i class="bi bi-patch-check-fill text-success fs-2 me-2"></i>
+              <div>
+                <div class="fw-bold text-success">Verified by Hospital Staff</div>
+                <div class="small text-muted">Authorized by: {{ record.verifier.full_name if record.verifier else 'Clinical Staff' }}</div>
+              </div>
+              {% else %}
+              <i class="bi bi-exclamation-triangle-fill text-warning fs-2 me-2"></i>
+              <div>
+                <div class="fw-bold text-warning">Pending Physical Verification</div>
+                <div class="small text-muted">Awaiting supervisory sign-off</div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+            <div class="small text-muted">Hospital Registration: {{ hospital_code }}</div>
+            <div class="small text-muted">Central PCB Standard Compliance</div>
+          </div>
+        </div>
+
+        <!-- Printed Signature Blocks -->
+        <div class="row mt-5 pt-4 text-center border-top d-none d-print-flex">
+          <div class="col-6">
+            <div class="border-top pt-1 small">Nurse / Clinical Technician Signature</div>
+          </div>
+          <div class="col-6">
+            <div class="border-top pt-1 small">Infection Control Officer / CBMWTF Carrier</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Lifecycle Update Modal Form (Non-print) -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 no-print">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Update Disposal Lifecycle Status</h6>
+      </div>
+      <div class="card-body p-3">
+        <form method="POST" action="{{ url_for('waste.update_status', record_id=record.id) }}" class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small text-secondary fw-semibold">New Lifecycle Status</label>
+            <select name="disposal_status" class="form-select form-select-sm">
+              <option value="GENERATED" {% if record.disposal_status == 'GENERATED' %}selected{% endif %}>GENERATED (At Ward)</option>
+              <option value="STORED" {% if record.disposal_status == 'STORED' %}selected{% endif %}>STORED (In Hospital Holding Area)</option>
+              <option value="DISPATCHED" {% if record.disposal_status == 'DISPATCHED' %}selected{% endif %}>DISPATCHED (Handed to Treatment Vehicle)</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-secondary fw-semibold">Manifest # (If Dispatched)</label>
+            <input type="text" name="dispatch_manifest_no" class="form-control form-select-sm" 
+                   placeholder="e.g. MNF-2026-DL-104" value="{{ record.dispatch_manifest_no or '' }}">
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+              <i class="bi bi-save me-1"></i> Update Status
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Administration Actions (Delete) -->
+    {% if current_user.is_admin_user %}
+    <div class="text-end mb-5 no-print">
+      <form method="POST" action="{{ url_for('waste.delete_record', record_id=record.id) }}" onsubmit="return confirm('Are you sure you want to permanently delete record #{{ record.tracking_code }}? This action cannot be undone.');">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-trash me-1"></i> Delete Record from Ledger (Admin Only)
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

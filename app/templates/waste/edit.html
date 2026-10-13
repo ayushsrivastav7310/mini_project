@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Waste Record #{{ record.tracking_code }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-dark">
+          <i class="bi bi-pencil-square text-primary me-2"></i>Edit Waste Record #{{ record.tracking_code }}
+        </h5>
+        <span class="badge bg-light text-secondary border">Created: {{ record.created_at.strftime('%d-%b-%Y') }}</span>
+      </div>
+
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('waste.edit_record', record_id=record.id) }}">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="department_id" class="form-label fw-semibold text-secondary small">Originating Department *</label>
+              <select class="form-select" id="department_id" name="department_id" required>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if record.department_id == dept.id %}selected{% endif %}>
+                  {{ dept.code }} - {{ dept.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label for="category_id" class="form-label fw-semibold text-secondary small">Assigned BMW Category *</label>
+              <select class="form-select" id="category_id" name="category_id" required>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if record.category_id == cat.id %}selected{% endif %}>
+                  {{ cat.bin_color_name }} Bin: {{ cat.name }} ({{ cat.code }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="item_description" class="form-label fw-semibold text-secondary small">Waste Item Description *</label>
+            <input type="text" class="form-control" id="item_description" name="item_description" 
+                   value="{{ record.item_description }}" required>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="quantity_kg" class="form-label fw-semibold text-secondary small">Gross Weight (Kilograms) *</label>
+              <div class="input-group">
+                <input type="number" step="0.01" min="0.01" max="5000" class="form-control" id="quantity_kg" name="quantity_kg" 
+                       value="{{ record.quantity_kg }}" required>
+                <span class="input-group-text">kg</span>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-secondary small">Logged By</label>
+              <input type="text" class="form-control bg-light" value="{{ record.logger.full_name }}" disabled>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="remarks" class="form-label fw-semibold text-secondary small">Clinical Handling Remarks</label>
+            <textarea class="form-control" id="remarks" name="remarks" rows="2">{{ record.remarks or '' }}</textarea>
+          </div>
+
+          <div class="card bg-light border-warning mb-4">
+            <div class="card-body py-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="staff_verified" name="staff_verified" value="1" 
+                       {% if record.staff_verified %}checked{% endif %}>
+                <label class="form-check-label fw-semibold text-dark" for="staff_verified">
+                  Staff Physical Inspection Verified
+                </label>
+                <div class="form-text small text-muted">
+                  Check if this waste item's category and containment have been physically audited.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+              <i class="bi bi-save me-1"></i> Save Changes
+            </button>
+            <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="btn btn-outline-secondary px-4 py-2">
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

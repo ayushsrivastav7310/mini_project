@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Hospital Staff Sign In{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center py-4">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+      <div class="card-header bg-primary text-white text-center py-4">
+        <i class="bi bi-hospital fs-1 d-block mb-2"></i>
+        <h4 class="fw-bold mb-1">Lifeline Hospital</h4>
+        <div class="small opacity-75">Bio-Medical Waste Management Portal (BMW-2016)</div>
+      </div>
+
+      <div class="card-body p-4 p-md-5">
+        <form method="POST" action="{{ url_for('auth.login') }}">
+          <div class="mb-3">
+            <label for="username" class="form-label fw-semibold text-secondary small">Username or Official Email</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+              <input type="text" class="form-control" id="username" name="username" placeholder="e.g. admin or staff" required autofocus>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label fw-semibold text-secondary small">Password</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
+              <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+            </div>
+          </div>
+
+          <div class="mb-4 form-check">
+            <input type="checkbox" class="form-check-input" id="remember" name="remember">
+            <label class="form-check-label text-muted small" for="remember">Keep session active on this workstation</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Waste Ledger
+          </button>
+        </form>
+
+        <hr class="my-4 text-muted">
+
+        <!-- 1-Click Evaluator Demo Credentials -->
+        <div class="text-center">
+          <div class="fw-bold small text-secondary mb-2">EVALUATION DEMO QUICK ACCESS</div>
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('auth.demo_login', role='admin') }}" class="btn btn-outline-danger btn-sm text-start">
+              <i class="bi bi-person-fill-gear me-2"></i><strong>Admin:</strong> Dr. Rajesh Sharma (Medical Superintendent)
+            </a>
+            <a href="{{ url_for('auth.demo_login', role='staff') }}" class="btn btn-outline-success btn-sm text-start">
+              <i class="bi bi-person-badge me-2"></i><strong>Staff:</strong> Sunita Rao (Ward Nurse In-Charge)
+            </a>
+            <a href="{{ url_for('auth.demo_login', role='officer') }}" class="btn btn-outline-primary btn-sm text-start">
+              <i class="bi bi-shield-check me-2"></i><strong>Infection Officer:</strong> Dr. Ananya Sen
+            </a>
+          </div>
+          <div class="form-text mt-2 small text-muted">
+            Standard passwords: <code>Admin@123</code> / <code>Staff@123</code> / <code>Officer@123</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

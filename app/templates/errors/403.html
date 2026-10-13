@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}403 - Access Forbidden{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+  <div class="col-md-6 text-center">
+    <div class="display-1 text-danger fw-bold"><i class="bi bi-shield-lock"></i> 403</div>
+    <h2 class="h4 mt-3 fw-bold text-dark">Access Authorization Restricted</h2>
+    <p class="text-muted">You do not possess the necessary administrative credentials to inspect or modify this biomedical compliance resource.</p>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary px-4 mt-2">
+      <i class="bi bi-house-door me-1"></i> Return to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Log Biomedical Waste Entry{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="fw-bold mb-0 text-dark">
+          <i class="bi bi-plus-circle text-primary me-2"></i>Log Biomedical Waste Generation
+        </h5>
+        <div class="text-muted small">Record new hospital waste generated in clinical wards or operation theatres.</div>
+      </div>
+
+      <div class="card-body p-4">
+        {% if prefill and prefill.ai_suggested_category %}
+        <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+          <i class="bi bi-robot fs-4 me-3"></i>
+          <div>
+            <strong>AI Pre-Classification Transferred:</strong> The AI suggested stream 
+            <code>{{ prefill.ai_suggested_category }}</code> with {{ "%.1f"|format(prefill.ai_confidence * 100) if prefill.ai_confidence else 'N/A' }}% confidence.
+            Please verify category and weight before submission.
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('waste.create_record') }}" enctype="multipart/form-data">
+          <!-- Hidden AI Transfer Fields -->
+          <input type="hidden" name="ai_suggested_category" value="{{ prefill.ai_suggested_category if prefill else '' }}">
+          <input type="hidden" name="ai_confidence" value="{{ prefill.ai_confidence if prefill else '' }}">
+          <input type="hidden" name="image_filename" value="{{ prefill.image_filename if prefill else '' }}">
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="department_id" class="form-label fw-semibold text-secondary small">Originating Department *</label>
+              <select class="form-select" id="department_id" name="department_id" required>
+                <option value="">-- Select Department --</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if form_data and form_data.department_id == dept.id|string %}selected{% endif %}>
+                  {{ dept.code }} - {{ dept.name }} ({{ dept.floor_location }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label for="category_id" class="form-label fw-semibold text-secondary small">Assigned BMW Category / Stream *</label>
+              <select class="form-select" id="category_id" name="category_id" required>
+                <option value="">-- Select Category --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" 
+                        data-color="{{ cat.bin_color_name }}"
+                        data-container="{{ cat.container_type }}"
+                        data-treatment="{{ cat.treatment_method }}"
+                        {% if (prefill and prefill.category_id == cat.id) or (form_data and form_data.category_id == cat.id|string) %}selected{% endif %}>
+                  {{ cat.bin_color_name }} Bin: {{ cat.name }} ({{ cat.code }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="item_description" class="form-label fw-semibold text-secondary small">Waste Item Description *</label>
+            <input type="text" class="form-control" id="item_description" name="item_description" 
+                   placeholder="e.g. Discarded surgical gloves, blood-soaked swabs, antibiotic glass ampoules" 
+                   value="{{ form_data.item_description if form_data else (prefill.item_description if prefill else '') }}" required>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="quantity_kg" class="form-label fw-semibold text-secondary small">Gross Weight (Kilograms) *</label>
+              <div class="input-group">
+                <input type="number" step="0.01" min="0.01" max="5000" class="form-control" id="quantity_kg" name="quantity_kg" 
+                       placeholder="e.g. 3.45" value="{{ form_data.quantity_kg if form_data else '' }}" required>
+                <span class="input-group-text">kg</span>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label for="waste_image" class="form-label fw-semibold text-secondary small">Attach Waste Photo (Optional)</label>
+              <input class="form-control" type="file" id="waste_image" name="waste_image" accept="image/*">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="remarks" class="form-label fw-semibold text-secondary small">Clinical Handling Remarks</label>
+            <textarea class="form-control" id="remarks" name="remarks" rows="2" 
+                      placeholder="e.g. Autoclaved prior to bagging, sharps incinerated with needle burner">{{ form_data.remarks if form_data else '' }}</textarea>
+          </div>
+
+          <!-- Mandatory Staff Physical Verification Checkpoint -->
+          <div class="card bg-light border-warning mb-4">
+            <div class="card-body py-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="staff_verified" name="staff_verified" value="1" checked required>
+                <label class="form-check-label fw-semibold text-dark" for="staff_verified">
+                  <i class="bi bi-shield-check text-success me-1"></i> Staff Physical Inspection Checkpoint
+                </label>
+                <div class="form-text small text-muted">
+                  I hereby confirm that I have physically inspected this waste item, verified the color-coded container seal, and approved its assignment under institutional BMW (2016) procedures.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+              <i class="bi bi-check-circle me-1"></i> Save to Waste Ledger
+            </button>
+            <a href="{{ url_for('waste.list_records') }}" class="btn btn-outline-secondary px-4 py-2">
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

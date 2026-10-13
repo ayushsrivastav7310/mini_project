@@ -1,0 +1,172 @@
+/* Custom Healthcare Design System for Smart Medical Waste */
+:root {
+  --hospital-primary: #0284c7;
+  --hospital-primary-dark: #0369a1;
+  --hospital-secondary: #0f766e;
+  --hospital-surface: #f8fafc;
+  --hospital-card-bg: #ffffff;
+  --hospital-border: #e2e8f0;
+  --hospital-text: #1e293b;
+  --hospital-muted: #64748b;
+  
+  /* Indian BMW Colors */
+  --bmw-yellow: #eab308;
+  --bmw-red: #ef4444;
+  --bmw-white: #f8fafc;
+  --bmw-blue: #3b82f6;
+  --bmw-general: #334155;
+  --bmw-unknown: #64748b;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: var(--hospital-surface);
+  color: var(--hospital-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Regulatory Disclaimer Banner */
+.safety-disclaimer-banner {
+  background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 100%);
+  border-bottom: 2px solid #f59e0b;
+  color: #92400e;
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+}
+
+.safety-disclaimer-banner strong {
+  font-weight: 700;
+}
+
+/* Navigation Bar */
+.navbar-hospital {
+  background-color: #0f172a;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-hospital .navbar-brand {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.navbar-hospital .nav-link {
+  color: #cbd5e1;
+  font-weight: 500;
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.navbar-hospital .nav-link:hover,
+.navbar-hospital .nav-link.active {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Metric KPI Cards */
+.kpi-card {
+  border: 1px solid var(--hospital-border);
+  border-radius: 12px;
+  background-color: var(--hospital-card-bg);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+/* Biomedical Stream Badges */
+.badge-bmw-yellow {
+  background-color: #fef08a !important;
+  color: #854d0e !important;
+  border: 1px solid #facc15;
+}
+
+.badge-bmw-red {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border: 1px solid #f87171;
+}
+
+.badge-bmw-white {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #94a3b8;
+}
+
+.badge-bmw-blue {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border: 1px solid #60a5fa;
+}
+
+.badge-bmw-general {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border: 1px solid #64748b;
+}
+
+.badge-bmw-unknown {
+  background-color: #ffedd5 !important;
+  color: #9a3412 !important;
+  border: 1px solid #fb923c;
+}
+
+/* Drag and Drop Upload Zone */
+.upload-dropzone {
+  border: 2px dashed #94a3b8;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-dropzone:hover,
+.upload-dropzone.dragover {
+  border-color: var(--hospital-primary);
+  background-color: #f0f9ff;
+}
+
+/* Confidence Gauge Bar */
+.confidence-gauge {
+  height: 12px;
+  border-radius: 6px;
+  background-color: #e2e8f0;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Printable Waste Slip */
+@media print {
+  body {
+    background-color: #ffffff !important;
+  }
+  .navbar, .safety-disclaimer-banner, .no-print, footer, .btn {
+    display: none !important;
+  }
+  .card {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+  }
+}
