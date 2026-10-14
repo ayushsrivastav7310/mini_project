@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.waste_record import WasteRecord
@@ -8,6 +8,7 @@ from app.models.department import Department
 from app.models.feedback import PredictionFeedback
 from app.utils.decorators import admin_required
 from app.utils.validators import validate_quantity, sanitize_and_save_image
+from app.services.report_service import generate_barcode_svg, generate_record_qr_base64
 
 waste_bp = Blueprint("waste", __name__, url_prefix="/waste")
 
@@ -197,9 +198,57 @@ def create_record():
 @waste_bp.route("/<int:record_id>")
 @login_required
 def view_record(record_id: int):
-    """Detailed record view with tracking slip and verification badge."""
+    """Detailed record view with printable tracking slip, Code-128 barcode, and scannable QR manifest."""
     record = WasteRecord.query.get_or_404(record_id)
-    return render_template("waste/view.html", record=record)
+    qr_code_base64 = generate_record_qr_base64(record)
+    barcode_svg = generate_barcode_svg(record.tracking_code)
+    return render_template("waste/view.html", record=record, qr_code_base64=qr_code_base64, barcode_svg=barcode_svg)
+
+
+@waste_bp.route("/<int:record_id>/quick-status", methods=["POST"])
+@login_required
+def quick_status(record_id: int):
+    """Fast inline lifecycle status advancement (GENERATED -> STORED -> DISPATCHED)."""
+    record = WasteRecord.query.get_or_404(record_id)
+    next_status = request.form.get("status", "").strip().upper()
+    if next_status in [WasteRecord.STATUS_GENERATED, WasteRecord.STATUS_STORED, WasteRecord.STATUS_DISPATCHED]:
+        record.disposal_status = next_status
+        db.session.commit()
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": True, "status": record.disposal_status, "tracking_code": record.tracking_code})
+        flash(f"Status of #{record.tracking_code} updated to '{record.disposal_status}'.", "success")
+    else:
+        flash("Invalid status specified.", "danger")
+    return redirect(request.referrer or url_for("waste.list_records"))
+
+
+@waste_bp.route("/bulk-dispatch", methods=["POST"])
+@login_required
+def bulk_dispatch():
+    """Bulk dispatch multiple stored waste bags under a single transport manifest."""
+    record_ids = request.form.getlist("record_ids", type=int)
+    manifest_no = request.form.get("manifest_no", "").strip()
+    carrier = request.form.get("carrier", "").strip()
+
+    if not record_ids:
+        flash("No waste records were selected for bulk dispatch.", "warning")
+        return redirect(url_for("waste.list_records"))
+
+    records = WasteRecord.query.filter(WasteRecord.id.in_(record_ids)).all()
+    updated_count = 0
+    total_kg = 0.0
+    for r in records:
+        r.disposal_status = WasteRecord.STATUS_DISPATCHED
+        if manifest_no:
+            r.dispatch_manifest_no = manifest_no
+        if carrier:
+            r.dispatch_carrier = carrier
+        total_kg += r.quantity_kg
+        updated_count += 1
+
+    db.session.commit()
+    flash(f"Successfully dispatched {updated_count} waste bags ({total_kg:.2f} kg) under Manifest #{manifest_no or 'N/A'}.", "success")
+    return redirect(url_for("waste.list_records"))
 
 
 @waste_bp.route("/<int:record_id>/edit", methods=["GET", "POST"])

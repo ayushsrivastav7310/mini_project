@@ -1,103 +1,182 @@
 {% extends "base.html" %}
 
-{% block title %}Hospital Waste Operations Dashboard{% endblock %}
+{% block title %}Hospital Waste Operations Center & Live Analytics{% endblock %}
 
 {% block content %}
-<!-- Top Header and Quick Actions -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-2 border-bottom">
-  <div>
-    <h3 class="fw-bold mb-1 text-dark">
-      <i class="bi bi-speedometer2 text-primary me-2"></i>Biomedical Waste Operations Center
-    </h3>
-    <div class="text-muted small">
-      Real-time hospital segregation metrics, disposal lifecycle, and Indian BMW (2016) compliance tracking.
+<!-- Top Header and Live Control Bar -->
+<div class="card shadow-sm border-0 rounded-4 mb-4 bg-white p-3">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h3 class="fw-bold mb-0 text-dark">
+          <i class="bi bi-speedometer2 text-primary me-2"></i>Biomedical Waste Live Operations Center
+        </h3>
+        <span class="badge bg-success-subtle text-success border border-success d-inline-flex align-items-center gap-1 px-2 py-1">
+          <span class="spinner-grow spinner-grow-sm text-success" style="width: 0.6rem; height: 0.6rem;" role="status"></span>
+          LIVE TELEMETRY
+        </span>
+      </div>
+      <div class="text-muted small">
+        Continuous real-time calculation from operational records | BMW Rules (2016) statutory audit monitoring.
+      </div>
+    </div>
+
+    <!-- Live Controls: Auto-refresh, Department filter, and Manual Sync -->
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <!-- Department Filter -->
+      <div class="d-flex align-items-center">
+        <select id="liveDepartmentFilter" class="form-select form-select-sm" style="min-width: 160px;">
+          <option value="">All Hospital Wards</option>
+          {% for d in departments %}
+          <option value="{{ d.id }}" {% if selected_department_id == d.id %}selected{% endif %}>
+            {{ d.code }} - {{ d.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Refresh Interval Selector -->
+      <div class="d-flex align-items-center">
+        <select id="liveRefreshInterval" class="form-select form-select-sm" title="Live Polling Frequency">
+          <option value="5000">Auto-Sync: 5s</option>
+          <option value="15000" selected>Auto-Sync: 15s</option>
+          <option value="30000">Auto-Sync: 30s</option>
+          <option value="0">Sync: Paused</option>
+        </select>
+      </div>
+
+      <!-- Sync Now Button -->
+      <button id="manualSyncBtn" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1 shadow-sm" title="Force Immediate Database Recalculation">
+        <i class="bi bi-arrow-repeat" id="syncIcon"></i>
+        <span>Sync Now</span>
+      </button>
+
+      <!-- Quick Action Buttons -->
+      <a href="{{ url_for('ai.classify_view') }}" class="btn btn-warning text-dark fw-semibold btn-sm shadow-sm">
+        <i class="bi bi-camera-viewfinder me-1"></i> AI Scanner
+      </a>
+      <a href="{{ url_for('waste.create_record') }}" class="btn btn-primary btn-sm shadow-sm">
+        <i class="bi bi-plus-circle me-1"></i> Log Waste
+      </a>
     </div>
   </div>
-  <div class="d-flex gap-2 mt-3 mt-md-0">
-    <a href="{{ url_for('ai.classify_view') }}" class="btn btn-warning text-dark fw-semibold shadow-sm">
-      <i class="bi bi-camera-viewfinder me-1"></i> AI Smart Scanner
-    </a>
-    <a href="{{ url_for('waste.create_record') }}" class="btn btn-primary shadow-sm">
-      <i class="bi bi-plus-circle me-1"></i> Log Waste
-    </a>
-    <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
-      <i class="bi bi-file-earmark-arrow-down me-1"></i> Reports
-    </a>
+
+  <!-- Real-time sync timestamp bar -->
+  <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted" style="font-size: 0.78rem;">
+    <div>
+      <i class="bi bi-clock-history me-1"></i>Last Live Calculation: <strong id="liveSyncTimestamp" class="text-dark">{{ stats.sync_time }}</strong>
+    </div>
+    <div>
+      <span class="badge bg-light text-secondary border">Facility: {{ hospital_name }}</span>
+      <span class="badge bg-light text-secondary border ms-1">PCB Reg: {{ config.PCB_REGISTRATION_NO or 'SPCB/BMW/2026/0942' }}</span>
+    </div>
   </div>
 </div>
 
-<!-- 4 Key Performance Indicator (KPI) Cards -->
+<!-- Live Anomaly & Regulatory Violation Feed -->
+<div id="liveAnomalyContainer" class="mb-4 {% if stats.anomalies|length == 0 %}d-none{% endif %}">
+  {% for anomaly in stats.anomalies %}
+  <div class="alert {% if anomaly.level == 'CRITICAL' %}alert-danger border-danger{% elif anomaly.level == 'WARNING' %}alert-warning border-warning{% else %}alert-info border-info{% endif %} shadow-sm d-flex align-items-center justify-content-between mb-2" role="alert">
+    <div class="d-flex align-items-center">
+      <i class="bi {% if anomaly.level == 'CRITICAL' %}bi-shield-x fs-3 text-danger{% elif anomaly.level == 'WARNING' %}bi-exclamation-triangle-fill fs-3 text-warning{% else %}bi-info-circle-fill fs-3 text-info{% endif %} me-3"></i>
+      <div>
+        <div class="fw-bold">{{ anomaly.title }}</div>
+        <div class="small">{{ anomaly.message }}</div>
+      </div>
+    </div>
+    {% if anomaly.type == 'STORAGE_LIMIT_BREACH' %}
+    <a href="{{ url_for('waste.list_records', status='STORED') }}" class="btn btn-sm btn-danger shadow-sm">
+      <i class="bi bi-truck me-1"></i> {{ anomaly.action }}
+    </a>
+    {% elif anomaly.type == 'VERIFICATION_BACKLOG' %}
+    <a href="{{ url_for('waste.list_records', verified='no') }}" class="btn btn-sm btn-warning text-dark shadow-sm">
+      <i class="bi bi-shield-check me-1"></i> {{ anomaly.action }}
+    </a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- 5 Real-Time KPI Cards (Includes Live Compliance & Tomorrow's Forecast) -->
 <div class="row g-3 mb-4">
-  <div class="col-sm-6 col-xl-3">
-    <div class="card kpi-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-secondary small fw-semibold text-uppercase">Total Generated</div>
-          <h2 class="fw-bold my-1 text-dark">{{ stats.total_kg }} <span class="fs-6 fw-normal text-muted">kg</span></h2>
-          <div class="text-muted small">{{ stats.total_records }} records logged</div>
-        </div>
-        <div class="kpi-icon-wrap bg-primary-subtle text-primary">
-          <i class="bi bi-recycle"></i>
-        </div>
+  <!-- Total Waste -->
+  <div class="col-sm-6 col-xl-2 col-md-4">
+    <div class="card kpi-card p-3 h-100 shadow-sm border-0 rounded-3">
+      <div class="text-secondary small fw-semibold text-uppercase">Total Generated</div>
+      <h3 class="fw-bold my-1 text-dark">
+        <span id="kpiTotalKg">{{ stats.total_kg }}</span> <span class="fs-6 fw-normal text-muted">kg</span>
+      </h3>
+      <div class="text-muted small"><span id="kpiTotalRecords">{{ stats.total_records }}</span> records logged</div>
+    </div>
+  </div>
+
+  <!-- Today's Generation -->
+  <div class="col-sm-6 col-xl-2 col-md-4">
+    <div class="card kpi-card p-3 h-100 shadow-sm border-0 rounded-3">
+      <div class="text-secondary small fw-semibold text-uppercase">Today's Inflow</div>
+      <h3 class="fw-bold my-1 text-info">
+        <span id="kpiTodayKg">{{ stats.today_kg }}</span> <span class="fs-6 fw-normal text-muted">kg</span>
+      </h3>
+      <div class="text-muted small"><span id="kpiTodayRecords">{{ stats.today_records }}</span> entries today</div>
+    </div>
+  </div>
+
+  <!-- Pending Verification -->
+  <div class="col-sm-6 col-xl-2 col-md-4">
+    <div class="card kpi-card p-3 h-100 shadow-sm border-0 rounded-3">
+      <div class="text-secondary small fw-semibold text-uppercase">Unverified Bags</div>
+      <h3 class="fw-bold my-1 {% if stats.pending_verifications > 0 %}text-warning{% else %}text-success{% endif %}" id="kpiPendingVerif">
+        {{ stats.pending_verifications }}
+      </h3>
+      <div class="text-muted small">Awaiting clinical check</div>
+    </div>
+  </div>
+
+  <!-- Dispatched for Treatment -->
+  <div class="col-sm-6 col-xl-2 col-md-4">
+    <div class="card kpi-card p-3 h-100 shadow-sm border-0 rounded-3">
+      <div class="text-secondary small fw-semibold text-uppercase">Dispatched</div>
+      <h3 class="fw-bold my-1 text-success">
+        <span id="kpiDispatchedKg">{{ stats.dispatched_kg }}</span> <span class="fs-6 fw-normal text-muted">kg</span>
+      </h3>
+      <div class="text-muted small"><span id="kpiStoredKg">{{ stats.stored_kg }}</span> kg in holding</div>
+    </div>
+  </div>
+
+  <!-- Statutory BMW 2016 Compliance Score Card -->
+  <div class="col-sm-6 col-xl-2 col-md-4">
+    <div class="card kpi-card p-3 h-100 shadow-sm border-0 rounded-3 border-start border-4 border-success">
+      <div class="text-secondary small fw-semibold text-uppercase">BMW-2016 Score</div>
+      <h3 class="fw-bold my-1 text-success" id="kpiComplianceScore">
+        {{ stats.compliance.score }}%
+      </h3>
+      <div class="small fw-semibold text-dark" id="kpiComplianceGrade" style="font-size: 0.75rem;">
+        {{ stats.compliance.grade }}
       </div>
     </div>
   </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card kpi-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-secondary small fw-semibold text-uppercase">Today's Generation</div>
-          <h2 class="fw-bold my-1 text-info">{{ stats.today_kg }} <span class="fs-6 fw-normal text-muted">kg</span></h2>
-          <div class="text-muted small">{{ stats.today_records }} entries today</div>
-        </div>
-        <div class="kpi-icon-wrap bg-info-subtle text-info">
-          <i class="bi bi-calendar-event"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-sm-6 col-xl-3">
-    <div class="card kpi-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-secondary small fw-semibold text-uppercase">Pending Verification</div>
-          <h2 class="fw-bold my-1 {% if stats.pending_verifications > 0 %}text-warning{% else %}text-success{% endif %}">
-            {{ stats.pending_verifications }}
-          </h2>
-          <div class="text-muted small">Requires staff verification</div>
-        </div>
-        <div class="kpi-icon-wrap bg-warning-subtle text-warning">
-          <i class="bi bi-shield-exclamation"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-sm-6 col-xl-3">
-    <div class="card kpi-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="text-secondary small fw-semibold text-uppercase">Dispatched for Treatment</div>
-          <h2 class="fw-bold my-1 text-success">{{ stats.dispatched_kg }} <span class="fs-6 fw-normal text-muted">kg</span></h2>
-          <div class="text-muted small">{{ stats.stored_kg }} kg currently in holding</div>
-        </div>
-        <div class="kpi-icon-wrap bg-success-subtle text-success">
-          <i class="bi bi-truck"></i>
-        </div>
+  <!-- Predictive Tomorrow Forecast -->
+  <div class="col-sm-6 col-xl-2 col-md-4">
+    <div class="card kpi-card p-3 h-100 shadow-sm border-0 rounded-3 bg-light">
+      <div class="text-secondary small fw-semibold text-uppercase">24h Projection</div>
+      <h3 class="fw-bold my-1 text-primary">
+        <span id="kpiForecastKg">{{ stats.forecast.tomorrow_kg }}</span> <span class="fs-6 fw-normal text-muted">kg</span>
+      </h3>
+      <div class="text-muted small" style="font-size: 0.75rem;">
+        Trend: <span class="badge bg-primary-subtle text-primary" id="kpiForecastTrend">{{ stats.forecast.trend_direction }}</span>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Visual Charts Section (Chart.js) -->
+<!-- Visual Charts Section (Chart.js Live Updating) -->
 <div class="row g-3 mb-4">
   <!-- Waste Category Distribution Doughnut -->
   <div class="col-lg-5">
-    <div class="card shadow-sm border-0 rounded-3 h-100">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
       <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart me-2 text-primary"></i>Waste Stream Distribution</h6>
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart me-2 text-primary"></i>Live Stream Distribution</h6>
         <span class="badge bg-light text-secondary border">BMW 2016 Streams</span>
       </div>
       <div class="card-body">
@@ -110,10 +189,10 @@
 
   <!-- 7-Day Generation Trend Line Chart -->
   <div class="col-lg-7">
-    <div class="card shadow-sm border-0 rounded-3 h-100">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
       <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-graph-up me-2 text-info"></i>7-Day Hospital Generation Trend</h6>
-        <span class="badge bg-light text-secondary border">Daily kg</span>
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-graph-up me-2 text-info"></i>7-Day Hospital Generation Flow</h6>
+        <span class="badge bg-light text-secondary border">Daily kg Trends</span>
       </div>
       <div class="card-body">
         <div style="position: relative; height: 260px;">
@@ -124,119 +203,119 @@
   </div>
 </div>
 
-<!-- Department Comparison and Quick Reference Cards -->
+<!-- Department Breakdown & Statutory Stream Reference -->
 <div class="row g-3 mb-4">
   <!-- Department Generation Bar Chart -->
   <div class="col-lg-6">
-    <div class="card shadow-sm border-0 rounded-3 h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-bar-chart me-2 text-teal"></i>Generation by Department</h6>
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-bar-chart me-2 text-teal"></i>Generation by Hospital Ward</h6>
+        <span class="badge bg-light text-secondary border">Active Units</span>
       </div>
       <div class="card-body">
-        <div style="position: relative; height: 240px;">
+        <div style="position: relative; height: 250px;">
           <canvas id="departmentBarChart"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- BMW 2016 Quick Stream Reference Guide -->
+  <!-- Regulatory BMW Streams Live Table -->
   <div class="col-lg-6">
-    <div class="card shadow-sm border-0 rounded-3 h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-card-checklist me-2 text-success"></i>Regulatory Stream Reference</h6>
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-shield-check me-2 text-success"></i>Regulatory Stream Reference & Totals</h6>
+        <a href="{{ url_for('admin.categories') }}" class="btn btn-outline-secondary btn-sm" style="font-size: 0.75rem;">Manage Rules</a>
       </div>
-      <div class="card-body p-2">
-        <div class="list-group list-group-flush">
-          {% for cat in categories[:4] %}
-          <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2 border-0">
-            <div class="d-flex align-items-center">
-              <span class="badge rounded-circle p-2 me-3" style="background-color: {{ cat.bin_color_hex }};"> </span>
-              <div>
-                <div class="fw-semibold small">{{ cat.name }} ({{ cat.bin_color_name }} Bin)</div>
-                <div class="text-muted" style="font-size: 0.75rem;">{{ cat.container_type }} &bull; {{ cat.treatment_method[:45] }}...</div>
-              </div>
-            </div>
-            <a href="{{ url_for('waste.create_record', category_id=cat.id) }}" class="btn btn-outline-secondary btn-sm" title="Log in this bin">
-              <i class="bi bi-plus-lg"></i>
-            </a>
-          </div>
-          {% endfor %}
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>STREAM</th>
+                <th>TREATMENT PROTOCOL</th>
+                <th class="text-end">CUMULATIVE</th>
+                <th class="text-end">SHARE</th>
+              </tr>
+            </thead>
+            <tbody id="streamReferenceTableBody">
+              {% for cat in stats.category_stats %}
+              <tr>
+                <td>
+                  <span class="badge px-2 py-1 shadow-sm" style="background-color: {{ cat.color_hex }}; color: {% if cat.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
+                    {{ cat.color_name }} ({{ cat.code }})
+                  </span>
+                </td>
+                <td class="text-muted" style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ cat.treatment_method }}">
+                  {{ cat.treatment_method }}
+                </td>
+                <td class="text-end fw-bold">{{ cat.total_kg }} kg</td>
+                <td class="text-end">{{ cat.percentage }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Recent Hospital Waste Activity Ledger -->
-<div class="card shadow-sm border-0 rounded-3">
+<!-- Recent Records Strip -->
+<div class="card shadow-sm border-0 rounded-4">
   <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history me-2 text-secondary"></i>Recent Waste Generation Entries</h6>
-    <a href="{{ url_for('waste.list_records') }}" class="btn btn-outline-primary btn-sm">
-      View Complete Ledger ({{ stats.total_records }}) <i class="bi bi-arrow-right ms-1"></i>
-    </a>
+    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history me-2 text-secondary"></i>Recent Hospital Waste Logs</h6>
+    <a href="{{ url_for('waste.list_records') }}" class="btn btn-outline-primary btn-sm">Full Ledger &rarr;</a>
   </div>
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light small text-secondary">
+    <table class="table table-hover align-middle mb-0 small">
+      <thead class="table-light">
         <tr>
-          <th>TRACKING CODE</th>
+          <th>CODE</th>
           <th>TIMESTAMP</th>
           <th>DEPARTMENT</th>
-          <th>ITEM DESCRIPTION</th>
-          <th>STREAM / BIN</th>
+          <th>ITEM</th>
+          <th>STREAM</th>
           <th>WEIGHT</th>
           <th>STATUS</th>
           <th>VERIFIED</th>
-          <th class="text-end">ACTION</th>
+          <th class="text-end">SLIP</th>
         </tr>
       </thead>
       <tbody>
-        {% for record in recent_records %}
+        {% for r in recent_records %}
         <tr>
+          <td><a href="{{ url_for('waste.view_record', record_id=r.id) }}" class="fw-bold font-monospace text-decoration-none">{{ r.tracking_code }}</a></td>
+          <td class="text-muted">{{ r.created_at.strftime('%d-%b %H:%M') }}</td>
+          <td><span class="badge bg-light text-dark border">{{ r.department.code }}</span></td>
+          <td>{{ r.item_description }}</td>
           <td>
-            <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="fw-semibold text-decoration-none">
-              {{ record.tracking_code }}
-            </a>
-          </td>
-          <td class="small text-muted">{{ record.created_at.strftime('%d-%b %H:%M') }}</td>
-          <td><span class="badge bg-light text-dark border">{{ record.department.code }}</span></td>
-          <td class="small">{{ record.item_description[:35] }}{% if record.item_description|length > 35 %}...{% endif %}</td>
-          <td>
-            <span class="badge" style="background-color: {{ record.category.bin_color_hex }}; color: {% if record.category.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
-              {{ record.category.bin_color_name }}
+            <span class="badge" style="background-color: {{ r.category.bin_color_hex }}; color: {% if r.category.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
+              {{ r.category.bin_color_name }}
             </span>
           </td>
-          <td class="fw-bold">{{ "%.2f"|format(record.quantity_kg) }} kg</td>
+          <td class="fw-bold">{{ "%.2f"|format(r.quantity_kg) }} kg</td>
           <td>
-            <span class="badge {% if record.disposal_status == 'DISPATCHED' %}bg-success{% elif record.disposal_status == 'STORED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-              {{ record.disposal_status }}
+            <span class="badge {% if r.disposal_status == 'DISPATCHED' %}bg-success{% elif r.disposal_status == 'STORED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ r.disposal_status }}
             </span>
           </td>
           <td>
-            {% if record.staff_verified %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2"></i> Verified</span>
+            {% if r.staff_verified %}
+            <i class="bi bi-check-circle-fill text-success" title="Verified"></i>
             {% else %}
-              <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-exclamation"></i> Unverified</span>
+            <i class="bi bi-exclamation-circle-fill text-warning" title="Unverified"></i>
             {% endif %}
           </td>
           <td class="text-end">
-            <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="btn btn-light btn-sm text-primary" title="View Tracking Slip">
-              <i class="bi bi-eye"></i>
+            <a href="{{ url_for('waste.view_record', record_id=r.id) }}" class="btn btn-outline-secondary btn-sm p-1 px-2" title="Print Slip">
+              <i class="bi bi-printer"></i>
             </a>
           </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="9" class="text-center py-4 text-muted">No waste records logged yet.</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 {% endblock %}

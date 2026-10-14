@@ -9,6 +9,7 @@ python-dotenv>=1.0.0
 Pillow>=10.3.0
 reportlab>=4.2.0
 numpy>=1.26.0
+qrcode>=8.0.0
 
 # Automated Testing
 pytest>=8.0.0

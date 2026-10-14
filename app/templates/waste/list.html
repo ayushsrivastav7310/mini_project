@@ -1,71 +1,79 @@
 {% extends "base.html" %}
 
-{% block title %}Hospital Waste Audit Ledger{% endblock %}
+{% block title %}Hospital Waste Ledger & Audit Log{% endblock %}
 
 {% block content %}
+<!-- Page Header -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
   <div>
-    <h3 class="fw-bold mb-1 text-dark"><i class="bi bi-journal-text text-primary me-2"></i>Biomedical Waste Ledger</h3>
-    <div class="text-muted small">Comprehensive audit trail of all generated, stored, and dispatched biomedical waste.</div>
+    <h3 class="fw-bold mb-1 text-dark">
+      <i class="bi bi-journal-text text-primary me-2"></i>Biomedical Waste Generation & Disposal Ledger
+    </h3>
+    <div class="text-muted small">
+      Comprehensive tracking of clinical waste streams, electronic tracking codes, and disposal statuses.
+    </div>
   </div>
   <div class="d-flex gap-2 mt-3 mt-md-0">
-    <a href="{{ url_for('ai.classify_view') }}" class="btn btn-warning text-dark fw-semibold">
-      <i class="bi bi-camera-viewfinder me-1"></i> Scan with AI
+    <button type="button" class="btn btn-outline-success shadow-sm btn-sm" data-bs-toggle="modal" data-bs-target="#bulkDispatchModal">
+      <i class="bi bi-truck me-1"></i> Bulk Dispatch
+    </button>
+    <a href="{{ url_for('ai.classify_view') }}" class="btn btn-warning text-dark fw-semibold btn-sm shadow-sm">
+      <i class="bi bi-camera-viewfinder me-1"></i> AI Smart Scanner
     </a>
-    <a href="{{ url_for('waste.create_record') }}" class="btn btn-primary">
-      <i class="bi bi-plus-circle me-1"></i> Log New Waste
+    <a href="{{ url_for('waste.create_record') }}" class="btn btn-primary btn-sm shadow-sm">
+      <i class="bi bi-plus-circle me-1"></i> Log Waste Bag
     </a>
   </div>
 </div>
 
-<!-- Search & Multi-Filter Panel -->
-<div class="card shadow-sm border-0 rounded-3 mb-4">
+<!-- Filter Bar Card -->
+<div class="card shadow-sm border-0 rounded-3 mb-3 bg-light">
   <div class="card-body p-3">
     <form method="GET" action="{{ url_for('waste.list_records') }}" class="row g-2 align-items-end">
       <div class="col-md-3">
-        <label class="form-label small text-secondary fw-semibold">Search Item or Barcode</label>
+        <label class="form-label small text-muted mb-1">Search Keywords</label>
         <div class="input-group input-group-sm">
-          <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-          <input type="text" name="q" class="form-control" placeholder="e.g. BMW-2026 or needles" value="{{ current_q }}">
+          <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" class="form-control" placeholder="Code, item, manifest..." value="{{ current_q }}">
         </div>
       </div>
 
-      <div class="col-md-2">
-        <label class="form-label small text-secondary fw-semibold">BMW Stream / Bin</label>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small text-muted mb-1">BMW Category</label>
         <select name="category_id" class="form-select form-select-sm">
           <option value="">All Categories</option>
-          {% for cat in categories %}
-          <option value="{{ cat.id }}" {% if current_category == cat.id %}selected{% endif %}>
-            {{ cat.bin_color_name }} ({{ cat.code }})
+          {% for c in categories %}
+          <option value="{{ c.id }}" {% if current_category == c.id %}selected{% endif %}>
+            {{ c.bin_color_name }} - {{ c.name }}
           </option>
           {% endfor %}
         </select>
       </div>
 
-      <div class="col-md-2">
-        <label class="form-label small text-secondary fw-semibold">Department</label>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small text-muted mb-1">Department</label>
         <select name="department_id" class="form-select form-select-sm">
           <option value="">All Departments</option>
-          {% for dept in departments %}
-          <option value="{{ dept.id }}" {% if current_department == dept.id %}selected{% endif %}>
-            {{ dept.code }} - {{ dept.name }}
+          {% for d in departments %}
+          <option value="{{ d.id }}" {% if current_department == d.id %}selected{% endif %}>
+            {{ d.code }} - {{ d.name }}
           </option>
           {% endfor %}
         </select>
       </div>
 
-      <div class="col-md-2">
-        <label class="form-label small text-secondary fw-semibold">Disposal Status</label>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small text-muted mb-1">Lifecycle Status</label>
         <select name="status" class="form-select form-select-sm">
           <option value="">All Statuses</option>
-          <option value="GENERATED" {% if current_status == 'GENERATED' %}selected{% endif %}>Generated</option>
-          <option value="STORED" {% if current_status == 'STORED' %}selected{% endif %}>Stored in Holding</option>
-          <option value="DISPATCHED" {% if current_status == 'DISPATCHED' %}selected{% endif %}>Dispatched</option>
+          <option value="GENERATED" {% if current_status == 'GENERATED' %}selected{% endif %}>GENERATED</option>
+          <option value="STORED" {% if current_status == 'STORED' %}selected{% endif %}>STORED</option>
+          <option value="DISPATCHED" {% if current_status == 'DISPATCHED' %}selected{% endif %}>DISPATCHED</option>
         </select>
       </div>
 
-      <div class="col-md-1">
-        <label class="form-label small text-secondary fw-semibold">Verified?</label>
+      <div class="col-md-1 col-sm-6">
+        <label class="form-label small text-muted mb-1">Verified?</label>
         <select name="verified" class="form-select form-select-sm">
           <option value="">All</option>
           <option value="yes" {% if current_verified == 'yes' %}selected{% endif %}>Yes</option>
@@ -88,7 +96,7 @@
 <!-- Ledger Summary Strip -->
 <div class="d-flex justify-content-between align-items-center mb-2 px-1">
   <div class="small text-muted">
-    Showing <strong>{{ records|length }}</strong> records | Filtered Cumulative Weight: <strong class="text-dark">{{ filtered_weight }} kg</strong>
+    Showing <strong>{{ records|length }}</strong> records | Cumulative Filtered Weight: <strong class="text-dark">{{ filtered_weight }} kg</strong>
   </div>
   <div>
     <a href="{{ url_for('reports.export_csv', category_id=current_category, department_id=current_department, status=current_status) }}" class="btn btn-outline-success btn-sm">
@@ -97,95 +105,177 @@
   </div>
 </div>
 
-<!-- Records Table -->
-<div class="card shadow-sm border-0 rounded-3">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light small text-secondary">
-        <tr>
-          <th>BARCODE / CODE</th>
-          <th>TIMESTAMP</th>
-          <th>DEPARTMENT</th>
-          <th>ITEM DESCRIPTION</th>
-          <th>BIN STREAM</th>
-          <th>WEIGHT</th>
-          <th>LIFECYCLE STATUS</th>
-          <th>VERIFICATION</th>
-          <th>LOGGED BY</th>
-          <th class="text-end">ACTIONS</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for record in records %}
-        <tr>
-          <td>
-            <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="fw-semibold text-decoration-none">
-              {{ record.tracking_code }}
-            </a>
-          </td>
-          <td class="small text-muted">{{ record.created_at.strftime('%d-%b-%Y %H:%M') }}</td>
-          <td>
-            <span class="badge bg-light text-dark border">{{ record.department.code }}</span>
-          </td>
-          <td class="small">
-            <div>{{ record.item_description }}</div>
-            {% if record.ai_suggested_category %}
-              <div class="text-muted" style="font-size: 0.72rem;">
-                <i class="bi bi-robot me-1"></i>AI Suggested: {{ record.ai_suggested_category }} ({{ "%.1f"|format(record.ai_confidence * 100) if record.ai_confidence else 'N/A' }}%)
-              </div>
-            {% endif %}
-          </td>
-          <td>
-            <span class="badge" style="background-color: {{ record.category.bin_color_hex }}; color: {% if record.category.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
-              {{ record.category.bin_color_name }}
-            </span>
-          </td>
-          <td class="fw-bold">{{ "%.2f"|format(record.quantity_kg) }} kg</td>
-          <td>
-            <span class="badge {% if record.disposal_status == 'DISPATCHED' %}bg-success{% elif record.disposal_status == 'STORED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-              {{ record.disposal_status }}
-            </span>
-          </td>
-          <td>
-            {% if record.staff_verified %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle">
-                <i class="bi bi-check-circle me-1"></i>Verified
-              </span>
-            {% else %}
-              <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
-                <i class="bi bi-exclamation-circle me-1"></i>Unverified
-              </span>
-            {% endif %}
-          </td>
-          <td class="small text-muted">{{ record.logger.full_name }}</td>
-          <td class="text-end">
-            <div class="btn-group btn-group-sm">
-              <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="btn btn-outline-secondary" title="View Slip">
-                <i class="bi bi-eye"></i>
-              </a>
-              <a href="{{ url_for('waste.edit_record', record_id=record.id) }}" class="btn btn-outline-secondary" title="Edit">
-                <i class="bi bi-pencil"></i>
-              </a>
-              {% if not record.staff_verified %}
-              <form method="POST" action="{{ url_for('waste.verify_record', record_id=record.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-outline-success" title="Verify Entry">
-                  <i class="bi bi-check2"></i>
-                </button>
-              </form>
+<!-- Records Table Form (For Multi-select Bulk Dispatch) -->
+<form id="ledgerForm" method="POST" action="{{ url_for('waste.bulk_dispatch') }}">
+  <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light small text-secondary">
+          <tr>
+            <th width="35" class="text-center">
+              <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+            </th>
+            <th>TRACKING IDENTIFIER</th>
+            <th>TIMESTAMP</th>
+            <th>DEPARTMENT</th>
+            <th>ITEM DESCRIPTION</th>
+            <th>STREAM</th>
+            <th>WEIGHT</th>
+            <th>LIFECYCLE STATUS</th>
+            <th>VERIFICATION</th>
+            <th>LOGGED BY</th>
+            <th class="text-end">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for record in records %}
+          <tr>
+            <td class="text-center">
+              {% if record.disposal_status != 'DISPATCHED' %}
+              <input type="checkbox" name="record_ids" value="{{ record.id }}" class="form-check-input record-checkbox">
+              {% else %}
+              <i class="bi bi-check2 text-muted" title="Already Dispatched"></i>
               {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="10" class="text-center py-5 text-muted">
-            <i class="bi bi-folder2-open fs-2 d-block mb-2"></i>
-            No medical waste records match the active filter criteria.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            </td>
+            <td>
+              <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="fw-bold font-monospace text-decoration-none">
+                {{ record.tracking_code }}
+              </a>
+            </td>
+            <td class="small text-muted">{{ record.created_at.strftime('%d-%b-%Y %H:%M') }}</td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ record.department.code }}</span>
+            </td>
+            <td class="small">
+              <div>{{ record.item_description }}</div>
+              {% if record.ai_suggested_category %}
+                <div class="text-muted" style="font-size: 0.72rem;">
+                  <i class="bi bi-cpu me-1 text-info"></i>AI Suggestion: {{ record.ai_suggested_category }} ({{ "%.1f"|format(record.ai_confidence * 100) if record.ai_confidence else 'N/A' }}%)
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge px-2 py-1 shadow-sm" style="background-color: {{ record.category.bin_color_hex }}; color: {% if record.category.code in ['WHITE', 'YELLOW'] %}#1e293b{% else %}#ffffff{% endif %};">
+                {{ record.category.bin_color_name }}
+              </span>
+            </td>
+            <td class="fw-bold">{{ "%.2f"|format(record.quantity_kg) }} kg</td>
+            <td>
+              <div class="d-flex align-items-center gap-1">
+                <span class="badge {% if record.disposal_status == 'DISPATCHED' %}bg-success{% elif record.disposal_status == 'STORED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                  {{ record.disposal_status }}
+                </span>
+                
+                <!-- 1-Click Quick Transition Button -->
+                {% if record.disposal_status == 'GENERATED' %}
+                <button type="button" class="btn btn-xs btn-outline-warning p-0 px-1 border-0" 
+                        onclick="quickAdvanceStatus('{{ record.id }}', 'STORED')" title="Advance to STORED in holding">
+                  <i class="bi bi-box-arrow-in-down small"></i>
+                </button>
+                {% elif record.disposal_status == 'STORED' %}
+                <button type="button" class="btn btn-xs btn-outline-success p-0 px-1 border-0" 
+                        onclick="quickAdvanceStatus('{{ record.id }}', 'DISPATCHED')" title="Advance to DISPATCHED">
+                  <i class="bi bi-truck small"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              {% if record.staff_verified %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                  <i class="bi bi-check-circle me-1"></i>Verified
+                </span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                  <i class="bi bi-exclamation-circle me-1"></i>Unverified
+                </span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ record.logger.full_name }}</td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('waste.view_record', record_id=record.id) }}" class="btn btn-outline-secondary" title="View Printable Slip">
+                  <i class="bi bi-upc-scan"></i>
+                </a>
+                <a href="{{ url_for('waste.edit_record', record_id=record.id) }}" class="btn btn-outline-secondary" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% if not record.staff_verified %}
+                <form method="POST" action="{{ url_for('waste.verify_record', record_id=record.id) }}" class="d-inline">
+                  <button type="submit" class="btn btn-outline-success" title="Verify Entry">
+                    <i class="bi bi-check2"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="11" class="text-center py-5 text-muted">
+              <i class="bi bi-folder2-open fs-2 d-block mb-2"></i>
+              No medical waste records match the active filter criteria.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
+
+  <!-- Bulk Dispatch Modal -->
+  <div class="modal fade" id="bulkDispatchModal" tabindex="-1" aria-labelledby="bulkDispatchModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="bulkDispatchModalLabel">
+            <i class="bi bi-truck me-2 text-success"></i>Bulk Dispatch Waste Bags
+          </h5>
+          <button type="button" class="btn-close" data-bs-toggle="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">
+            All selected waste records will transition from <strong>STORED</strong> to <strong>DISPATCHED</strong> and be logged under an official common bio-medical waste treatment facility (CBWTF) manifest.
+          </p>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Transport Manifest Number</label>
+            <input type="text" name="manifest_no" class="form-control form-control-sm" placeholder="e.g. MNF-2026-OCT-8841" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Authorized CBWTF Carrier / Vehicle</label>
+            <input type="text" name="carrier" class="form-control form-control-sm" placeholder="e.g. EcoCare BMW Carrier DL-1L-4920" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle me-1"></i> Confirm & Dispatch Selected Bags
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+  // Select All Checkbox Handler
+  document.getElementById('selectAllCheckbox')?.addEventListener('change', function(e) {
+    document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = e.target.checked);
+  });
+
+  // Fast inline status advancement
+  function quickAdvanceStatus(recordId, targetStatus) {
+    if (!confirm('Advance record status to ' + targetStatus + '?')) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/waste/' + recordId + '/quick-status';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'status';
+    input.value = targetStatus;
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+  }
+</script>
 {% endblock %}

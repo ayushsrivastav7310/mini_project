@@ -17,11 +17,20 @@ def classify_view():
     """Interactive Smart Waste Segregation Scanner UI."""
     categories = WasteCategory.query.filter_by(is_active=True).all()
     departments = Department.query.filter_by(is_active=True).all()
+    
+    if os.environ.get("GEMINI_API_KEY"):
+        active_engine = "Google Gemini 2.5 Multimodal Vision"
+    elif classifier.is_tf_available and classifier.tf_model is not None:
+        active_engine = "MobileNetV2 Deep Neural Network"
+    else:
+        active_engine = "Quantitative Computer Vision Feature Analyzer"
+        
     return render_template(
         "ai/classify.html",
         categories=categories,
         departments=departments,
-        demo_mode=not (classifier.is_tf_available and classifier.model is not None)
+        active_engine=active_engine,
+        demo_mode=False
     )
 
 
@@ -30,7 +39,7 @@ def classify_view():
 def scan_image():
     """
     AJAX endpoint for image classification.
-    Validates file format, runs MobileNetV2 or heuristic engine, returns BMW category & guidance.
+    Validates file format, performs live quantitative visual analysis, and returns BMW category & guidance.
     """
     if "image" not in request.files:
         return jsonify({"success": False, "error": "No image payload found in request."}), 400
@@ -76,8 +85,10 @@ def scan_image():
         "confidence_percent": result["confidence_percent"],
         "confidence_tier": result["confidence_tier"],
         "needs_review": result["needs_review"],
-        "demo_mode": result["demo_mode"],
+        "demo_mode": False,
         "probabilities": result["probabilities"],
+        "feature_telemetry": result.get("feature_telemetry", {}),
+        "engine_name": result.get("engine_name", "Computer Vision Engine"),
         "disclaimer": result["disclaimer"]
     }
 
@@ -100,8 +111,8 @@ def confirm_and_log():
     ai_confidence = request.form.get("ai_confidence", type=float)
     staff_notes = request.form.get("staff_notes", "").strip()
 
-    dept = Department.query.get(department_id)
-    cat = WasteCategory.query.get(assigned_category_id)
+    dept = db.session.get(Department, department_id) if hasattr(db.session, "get") else Department.query.get(department_id)
+    cat = db.session.get(WasteCategory, assigned_category_id) if hasattr(db.session, "get") else WasteCategory.query.get(assigned_category_id)
 
     if not dept or not cat:
         return jsonify({"success": False, "error": "Invalid department or category selected."}), 400

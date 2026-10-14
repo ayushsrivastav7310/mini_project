@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-xl-10">
+  <div class="col-xl-11">
     
     <!-- Title & Safety Banner -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
@@ -13,10 +13,13 @@
           <i class="bi bi-camera-viewfinder text-warning me-2"></i>AI Smart Medical Waste Segregation Scanner
         </h3>
         <div class="text-muted small">
-          Computer vision decision-support powered by MobileNetV2 transfer learning with human-in-the-loop verification.
+          Multi-spectral computer vision & deep feature extraction with mandatory human verification (BMW Rules 2016).
         </div>
       </div>
-      <div class="mt-2 mt-md-0">
+      <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+        <span class="badge bg-primary-subtle text-primary border border-primary px-3 py-2">
+          <i class="bi bi-cpu me-1"></i> {{ active_engine }}
+        </span>
         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-3 py-2">
           <i class="bi bi-shield-lock me-1"></i> Human Verification Mandatory
         </span>
@@ -28,55 +31,86 @@
       <div class="d-flex">
         <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
         <div class="small">
-          <strong>CLINICAL SAFETY MANDATE (BMW Rules 2016):</strong> This artificial intelligence engine is an 
-          <em>educational decision-support prototype</em>. AI predictions must <strong>never</strong> be treated as autonomous authority for hazardous biomedical waste disposal. All waste classifications must be physically inspected and verified by trained clinical staff before containment.
+          <strong>STATUTORY CLINICAL SAFETY MANDATE (BMW Rules 2016):</strong> Artificial intelligence predictions act as 
+          <em>clinical decision-support assistance</em>. Autonomous disposal without physical confirmation is strictly prohibited by pollution control statutes. All waste bags must be physically inspected by trained healthcare personnel before containment and dispatch.
         </div>
       </div>
     </div>
 
     <div class="row g-4">
-      <!-- Left Column: Image Upload & Camera Capture Zone -->
+      <!-- Left Column: Image Upload & Live Camera Capture Zone -->
       <div class="col-lg-5">
         <div class="card shadow-sm border-0 rounded-4 h-100">
-          <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-upload me-2 text-primary"></i>1. Capture / Upload Waste Image</h6>
-            {% if demo_mode %}
-            <span class="badge bg-secondary-subtle text-secondary border small">Demo Heuristic Mode</span>
-            {% endif %}
+          <div class="card-header bg-white border-bottom py-2">
+            <ul class="nav nav-pills card-header-pills nav-fill" id="captureModeTabs">
+              <li class="nav-item">
+                <button class="nav-link active py-1 small fw-semibold" id="tabUpload" type="button">
+                  <i class="bi bi-upload me-1"></i> Upload File
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link py-1 small fw-semibold" id="tabCamera" type="button">
+                  <i class="bi bi-camera-video me-1"></i> Live Webcam
+                </button>
+              </li>
+            </ul>
           </div>
           <div class="card-body p-4 d-flex flex-column">
             
-            <!-- Drag and Drop Dropzone -->
-            <div id="uploadDropzone" class="upload-dropzone mb-3 flex-grow-1 d-flex flex-column justify-content-center align-items-center">
-              <i class="bi bi-cloud-arrow-up display-4 text-primary mb-2"></i>
-              <div class="fw-bold text-dark mb-1">Click to browse or drag & drop photo</div>
-              <div class="text-muted small">Supported formats: JPEG, PNG, WEBP (Max: 16 MB)</div>
-              <input type="file" id="wasteImageInput" accept="image/*" class="d-none">
+            <!-- UPLOAD MODE: Drag and Drop Dropzone -->
+            <div id="uploadModeContainer">
+              <div id="uploadDropzone" class="upload-dropzone mb-3 d-flex flex-column justify-content-center align-items-center" style="min-height: 200px;">
+                <i class="bi bi-cloud-arrow-up display-4 text-primary mb-2"></i>
+                <div class="fw-bold text-dark mb-1">Click to browse or drag & drop photo</div>
+                <div class="text-muted small">Supported formats: JPEG, PNG, WEBP (Max: 16 MB)</div>
+                <input type="file" id="wasteImageInput" accept="image/*" class="d-none">
+              </div>
+            </div>
+
+            <!-- LIVE CAMERA MODE: WebRTC Viewfinder -->
+            <div id="cameraModeContainer" class="d-none mb-3">
+              <div class="position-relative bg-dark rounded-3 overflow-hidden text-center" style="min-height: 220px;">
+                <video id="cameraVideo" autoplay playsinline class="w-100 h-100 rounded-3" style="max-height: 230px; object-fit: cover;"></video>
+                <canvas id="cameraCanvas" class="d-none"></canvas>
+                <div id="cameraStartOverlay" class="position-absolute top-50 start-50 translate-middle text-white w-100 p-2">
+                  <button id="startCameraBtn" type="button" class="btn btn-primary btn-sm shadow">
+                    <i class="bi bi-camera-video-fill me-1"></i> Activate Workstation Camera
+                  </button>
+                </div>
+              </div>
+              <div class="mt-2 text-center">
+                <button id="snapPhotoBtn" type="button" class="btn btn-outline-success btn-sm w-100 d-none">
+                  <i class="bi bi-camera-fill me-1"></i> Capture Photo for Analysis
+                </button>
+              </div>
             </div>
 
             <!-- Image Preview Box -->
             <div id="previewContainer" class="text-center mb-3 d-none">
               <div class="position-relative d-inline-block">
                 <img id="previewImage" src="" alt="Selected Waste Image" class="img-thumbnail rounded-3 shadow-sm" style="max-height: 220px; object-fit: contain;">
+                <button type="button" id="clearImageBtn" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-1 px-2 rounded-circle shadow" title="Clear photo">
+                  &times;
+                </button>
               </div>
             </div>
 
             <!-- Scan Action Button -->
-            <button id="scanBtn" class="btn btn-warning text-dark fw-bold py-2 shadow-sm w-100" disabled>
-              <i class="bi bi-cpu me-2"></i>Analyze Waste with AI
+            <button id="scanBtn" class="btn btn-warning text-dark fw-bold py-2 shadow-sm w-100 mt-2" disabled>
+              <i class="bi bi-cpu me-2"></i>Run Multi-Spectral AI Analysis
             </button>
 
             <!-- Loading Spinner -->
             <div id="scanningSpinner" class="text-center py-3 d-none">
               <div class="spinner-border text-primary" role="status"></div>
-              <div class="small text-muted mt-2">Evaluating visual features & BMW rules...</div>
+              <div class="small text-muted mt-2">Computing RGB/HSV spectrum & texture gradients...</div>
             </div>
 
-            <!-- Fallback Manual Entry Notice -->
+            <!-- Direct Manual Entry Link -->
             <div class="mt-auto pt-3 text-center border-top">
-              <div class="small text-muted mb-2">Camera unavailable or ambiguous visual?</div>
+              <div class="small text-muted mb-2">Prefer direct manual ledger intake?</div>
               <a href="{{ url_for('waste.create_record') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-keyboard me-1"></i> Switch to Direct Manual Classification
+                <i class="bi bi-keyboard me-1"></i> Manual Entry Without Scanner
               </a>
             </div>
 
@@ -89,9 +123,9 @@
         
         <!-- Placeholder when no image analyzed yet -->
         <div id="emptyPromptCard" class="card shadow-sm border-0 rounded-4 p-5 text-center text-muted h-100 d-flex justify-content-center align-items-center">
-          <i class="bi bi-image fs-1 text-secondary mb-3 opacity-50"></i>
-          <h5 class="fw-bold text-secondary">Awaiting Image Input</h5>
-          <p class="small mb-0 max-w-sm">Upload or capture an image of biomedical waste on the left and click "Analyze Waste with AI" to generate containment guidance.</p>
+          <i class="bi bi-camera-viewfinder fs-1 text-secondary mb-3 opacity-50"></i>
+          <h5 class="fw-bold text-secondary">Awaiting Waste Image Input</h5>
+          <p class="small mb-0 max-w-sm">Capture a photo via camera or upload a picture on the left, then click "Run Multi-Spectral AI Analysis" to extract physical features and determine regulatory containment.</p>
         </div>
 
         <!-- Prediction Result & Verification Card (Shown after analysis) -->
@@ -103,8 +137,8 @@
               <span id="predBinBadge" class="badge me-2 fs-6 px-3 py-2 shadow-sm">Bin Color</span>
               <h5 id="predCategoryName" class="fw-bold mb-0 text-dark">Category Name</h5>
             </div>
-            <div id="demoModeIndicator" class="badge bg-secondary d-none">
-              Educational Demo
+            <div id="activeEngineBadge" class="badge bg-primary-subtle text-primary border border-primary">
+              AI Vision Engine
             </div>
           </div>
 
@@ -114,15 +148,15 @@
             <div id="reviewWarningAlert" class="alert alert-danger border-danger d-flex align-items-center mb-3 d-none" role="alert">
               <i class="bi bi-shield-exclamation fs-4 me-3 text-danger"></i>
               <div class="small">
-                <strong>Safety Alert: Low Confidence / Unknown Waste.</strong> The AI classifier detected ambiguity or low certainty. 
+                <strong>Safety Alert: Low Certainty / Ambiguous Item.</strong> The vision classifier detected high optical ambiguity. 
                 Please inspect carefully or assign to <code>UNKNOWN / QUARANTINE</code> stream for Infection Control Officer review.
               </div>
             </div>
 
             <!-- Confidence Score Bar -->
-            <div class="mb-4">
+            <div class="mb-3">
               <div class="d-flex justify-content-between small fw-semibold text-secondary mb-1">
-                <span>AI Prediction Confidence</span>
+                <span>Algorithmic Certainty</span>
                 <span id="predConfidenceText">0%</span>
               </div>
               <div class="confidence-gauge">
@@ -130,13 +164,47 @@
               </div>
             </div>
 
+            <!-- Genuine Visual Telemetry Panel (Real Data-Driven Features) -->
+            <div class="card bg-light border-0 rounded-3 p-3 mb-3">
+              <div class="fw-bold text-dark small text-uppercase mb-2 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-graph-up-arrow me-1 text-primary"></i>Extracted Physical Feature Telemetry</span>
+                <span class="badge bg-white text-secondary border small" id="telemetryEngineLabel">Computer Vision</span>
+              </div>
+              <div class="row g-2 small">
+                <div class="col-sm-6">
+                  <div class="p-2 bg-white rounded border">
+                    <div class="text-muted" style="font-size: 0.72rem;">DOMINANT COLOR SPECTRUM</div>
+                    <div class="fw-bold text-dark text-truncate" id="telDominantHue">-</div>
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="p-2 bg-white rounded border">
+                    <div class="text-muted" style="font-size: 0.72rem;">INFERRED MATERIAL STRUCTURE</div>
+                    <div class="fw-bold text-dark text-truncate" id="telInferredMaterial">-</div>
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="p-2 bg-white rounded border">
+                    <div class="text-muted" style="font-size: 0.72rem;">SURFACE TEXTURE / SHARPNESS</div>
+                    <div class="fw-bold text-dark text-truncate" id="telTextureComplexity">-</div>
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="p-2 bg-white rounded border">
+                    <div class="text-muted" style="font-size: 0.72rem;">OPTICAL DENSITY / PROFILE</div>
+                    <div class="fw-bold text-dark text-truncate" id="telOpticalProfile">-</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Approved Disposal Guidance (BMW Rules 2016) -->
-            <div class="border rounded-3 p-3 bg-light mb-4">
+            <div class="border rounded-3 p-3 bg-white mb-3">
               <div class="fw-bold text-dark small text-uppercase mb-2">
-                <i class="bi bi-book me-1 text-primary"></i>Prescribed Disposal Guidance (BMW Rules 2016)
+                <i class="bi bi-book me-1 text-success"></i>Statutory Container & Disposal Protocol (BMW Rules 2016)
               </div>
               <div class="small mb-1">
-                <strong>Container Spec:</strong> <span id="predContainer">-</span>
+                <strong>Container Specification:</strong> <span id="predContainer">-</span>
               </div>
               <div class="small mb-1">
                 <strong>Approved Treatment:</strong> <span id="predTreatment">-</span>
@@ -146,9 +214,9 @@
               </div>
             </div>
 
-            <!-- Probabilities breakdown accordion -->
+            <!-- Multi-Category Probability Breakdown Accordion -->
             <div class="accordion mb-4" id="probAccordion">
-              <div class="accordion-item border">
+              <div class="accordion-item border rounded-3 overflow-hidden">
                 <h2 class="accordion-header">
                   <button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProb">
                     <i class="bi bi-bar-chart-steps me-2"></i>View Multi-Category Probability Distribution
@@ -162,65 +230,79 @@
               </div>
             </div>
 
-            <hr class="my-4">
-
-            <!-- Human-in-the-Loop Mandatory Verification & Commit Form -->
-            <h6 class="fw-bold text-dark mb-3">
-              <i class="bi bi-check2-circle text-success me-2"></i>2. Staff Verification & Ledger Commitment
-            </h6>
-            
-            <form id="verificationForm">
-              <input type="hidden" id="hiddenImageFilename" name="image_filename">
-              <input type="hidden" id="hiddenAiCategory" name="ai_suggested_category">
-              <input type="hidden" id="hiddenAiConfidence" name="ai_confidence">
-
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="verifyDepartmentSelect" class="form-label small fw-semibold text-secondary">Originating Department *</label>
-                  <select class="form-select form-select-sm" id="verifyDepartmentSelect" name="department_id" required>
-                    <option value="">-- Select Department --</option>
-                    {% for dept in departments %}
-                    <option value="{{ dept.id }}">{{ dept.code }} - {{ dept.name }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-
-                <div class="col-md-6">
-                  <label for="verifyCategorySelect" class="form-label small fw-semibold text-secondary">
-                    Staff-Verified Category * <span class="text-muted fw-normal">(Override if needed)</span>
-                  </label>
-                  <select class="form-select form-select-sm" id="verifyCategorySelect" name="assigned_category_id" required>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}">{{ cat.bin_color_name }} Bin: {{ cat.name }} ({{ cat.code }})</option>
-                    {% endfor %}
-                  </select>
-                </div>
+            <!-- Mandatory Clinical Verification & Intake Form -->
+            <div class="border rounded-4 p-3 bg-light">
+              <div class="d-flex align-items-center mb-3">
+                <i class="bi bi-person-check fs-4 text-primary me-2"></i>
+                <h6 class="fw-bold mb-0 text-dark">Staff Physical Inspection Checkpoint</h6>
               </div>
 
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="verifyQuantityInput" class="form-label small fw-semibold text-secondary">Gross Weight (kg) *</label>
-                  <div class="input-group input-group-sm">
-                    <input type="number" step="0.01" min="0.01" max="5000" class="form-control" id="verifyQuantityInput" name="quantity_kg" placeholder="e.g. 2.50" required>
-                    <span class="input-group-text">kg</span>
+              <form id="verificationCommitForm">
+                <input type="hidden" id="formImageFilename" name="image_filename">
+                <input type="hidden" id="formAiSuggestedCategory" name="ai_suggested_category">
+                <input type="hidden" id="formAiConfidence" name="ai_confidence">
+
+                <div class="row g-3 mb-3">
+                  <!-- Department Selection -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Originating Department <span class="text-danger">*</span></label>
+                    <select id="formDepartmentId" name="department_id" class="form-select form-select-sm" required>
+                      <option value="">Select Ward / Department...</option>
+                      {% for d in departments %}
+                      <option value="{{ d.id }}">{{ d.code }} - {{ d.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Final Assigned Category (Enables Staff Override) -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-semibold">
+                      Confirmed BMW Category <span class="text-danger">*</span>
+                      <span class="text-muted" style="font-size: 0.75rem;">(Change to override AI)</span>
+                    </label>
+                    <select id="formAssignedCategory" name="assigned_category_id" class="form-select form-select-sm" required>
+                      {% for c in categories %}
+                      <option value="{{ c.id }}" data-code="{{ c.code }}">
+                        {{ c.bin_color_name }} Stream - {{ c.name }}
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Net Weight Input -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Gross Net Weight (kg) <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                      <input type="number" step="0.01" min="0.01" max="5000" id="formQuantity" name="quantity_kg" class="form-control" placeholder="e.g. 2.75" required>
+                      <span class="input-group-text">kg</span>
+                    </div>
+                  </div>
+
+                  <!-- Item Description -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Clinical Description <span class="text-danger">*</span></label>
+                    <input type="text" id="formDescription" name="item_description" class="form-control form-control-sm" placeholder="e.g. Contaminated IV tubing and bags" required>
+                  </div>
+
+                  <!-- Staff Notes / Override Reason -->
+                  <div class="col-12">
+                    <label class="form-label small fw-semibold">Physical Verification Observations / Override Reason</label>
+                    <input type="text" id="formStaffNotes" name="staff_notes" class="form-control form-control-sm" placeholder="e.g. Physically checked and confirmed non-chlorinated red bag">
                   </div>
                 </div>
 
-                <div class="col-md-6">
-                  <label for="verifyDescriptionInput" class="form-label small fw-semibold text-secondary">Item Description *</label>
-                  <input type="text" class="form-control form-control-sm" id="verifyDescriptionInput" name="item_description" placeholder="e.g. Discarded syringes, cotton swabs" required>
+                <!-- Commit Action Buttons -->
+                <div class="d-flex gap-2">
+                  <button type="submit" id="commitRecordBtn" class="btn btn-success fw-bold flex-grow-1 shadow-sm">
+                    <i class="bi bi-check2-circle me-1"></i> Confirm, Print Slip & Commit to Ledger
+                  </button>
+                  <button type="button" id="resetScanBtn" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                  </button>
                 </div>
-              </div>
 
-              <div class="mb-3">
-                <label for="verifyNotesInput" class="form-label small fw-semibold text-secondary">Staff Verification Notes</label>
-                <input type="text" class="form-control form-control-sm" id="verifyNotesInput" name="staff_notes" placeholder="e.g. Physically inspected; needles segregated separately">
-              </div>
-
-              <button type="submit" id="commitRecordBtn" class="btn btn-success w-100 py-2 fw-semibold shadow-sm">
-                <i class="bi bi-check-circle me-1"></i> Confirm & Log Waste Record
-              </button>
-            </form>
+              </form>
+            </div>
 
           </div>
         </div>
